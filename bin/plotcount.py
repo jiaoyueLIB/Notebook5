@@ -1,36 +1,35 @@
-"""
-Combine multiple word count CSV-files
-into a single cumulative count.
-"""
+"""Plot word counts."""
 
-import csv
 import argparse
-from collections import Counter
 
-import utilities as util
-
-
-def update_counts(reader, word_counts):
-    """Update word counts with data from another reader/file."""
-    for word, count in csv.reader(reader):
-        word_counts[word] += int(count)
+import pandas as pd
 
 
 def main(args):
     """Run the command line program."""
-    word_counts = Counter()
-    for fname in args.infiles:
-        with open(fname, 'r') as reader:
-            update_counts(reader, word_counts)
-    util.collection_to_csv(word_counts, num=args.num)
+    df = pd.read_csv(args.infile, header=None,
+                     names=('word', 'word_frequency'))
+    df['rank'] = df['word_frequency'].rank(ascending=False,
+                                           method='max')
+    df['inverse_rank'] = 1 / df['rank']
+    ax = df.plot.scatter(x='word_frequency',
+                         y='inverse_rank',
+                         figsize=[12, 6],
+                         grid=True,
+                         xlim=args.xlim)
+    ax.figure.savefig(args.outfile)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('infiles', type=str, nargs='*',
-                        help='Input file names')
-    parser.add_argument('-n', '--num',
-                        type=int, default=None,
-                        help='Output n most frequent words')
+    parser.add_argument('infile', type=argparse.FileType('r'),
+                        nargs='?', default='-',
+                        help='Word count csv file name')
+    parser.add_argument('--outfile', type=str,
+                        default='plotcounts.png',
+                        help='Output image file name')
+    parser.add_argument('--xlim', type=float, nargs=2,
+                        metavar=('XMIN', 'XMAX'),
+                        default=None, help='X-axis limits')
     args = parser.parse_args()
     main(args)
